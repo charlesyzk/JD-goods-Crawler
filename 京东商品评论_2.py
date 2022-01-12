@@ -18,6 +18,12 @@ https://blog.csdn.net/m0_45827246/article/details/121628669?ops_request_misc=%25
 添加
 读取文件中的网址去进行爬取
 保存的文件命名 更改-->uid.xls
+
+
+数据是否有重复？有！！！每一个评论其实只爬了十条-->更自己写的无关，与初始代码有关-->page页没有用到 就离谱
+评论数据根本没有实际那么多页数？代码的运行以及如何处理？ 目前可以做到如果为空就终止爬取，但会创建文件
+
+如果需要做一个关键词分析的话，不能直接用全部评论，应该做成好评 差评分开的 分别去分析
 """
 
 import urllib
@@ -30,31 +36,29 @@ import xlutils.copy
 import xlrd
 
 
-# UserAgent_list = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
-#                   'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36',
-#                   'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36',
-#                   'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36']
-# Cookie = 'yh_language=zh-cn;' \
-#          ' yh_cudid=z5500dab7d08c659b84e44fc969d44bfa;' \
-#          ' _yasvd=1407875911; _ga=GA1.2.917476022.1606226670;' \
-#          ' _gid=GA1.2.324156849.1606226670; Hm_lvt_7b29c77c4002f91220be5eaf2ce387fe=1606226670,1606228424,1606289593;' \
-#          ' Hm_lvt_cba6f2719081a006e181cf17fa40ad05=1606289615;' \
-#          ' Hm_lpvt_cba6f2719081a006e181cf17fa40ad05=1606289626;' \
-#          ' Hm_lpvt_7b29c77c4002f91220be5eaf2ce387fe=1606290146'
-# headers = {
-#             'User-Agent': random.choice(UserAgent_list),  # 使用random模块中的choices()方法随机从列表中提取出一个内容
-#             'Cookie': Cookie
-#         }
-headers= {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Mobile Safari/537.36"
-    }
+UserAgent_list = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
+                  'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36',
+                  'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36',
+                  'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36']
+Cookie = 'yh_language=zh-cn;' \
+         ' yh_cudid=z5500dab7d08c659b84e44fc969d44bfa;' \
+         ' _yasvd=1407875911; _ga=GA1.2.917476022.1606226670;' \
+         ' _gid=GA1.2.324156849.1606226670; Hm_lvt_7b29c77c4002f91220be5eaf2ce387fe=1606226670,1606228424,1606289593;' \
+         ' Hm_lvt_cba6f2719081a006e181cf17fa40ad05=1606289615;' \
+         ' Hm_lpvt_cba6f2719081a006e181cf17fa40ad05=1606289626;' \
+         ' Hm_lpvt_7b29c77c4002f91220be5eaf2ce387fe=1606290146'
+headers = {
+            'User-Agent': random.choice(UserAgent_list),  # 使用random模块中的choices()方法随机从列表中提取出一个内容
+            'Cookie': Cookie
+        }
+
 #由商品url得到json文件地址
-def pre(url):
+def pre(url,page):
     url=url.lstrip('https://item.jd.com/')
     index=url.find('.')
     uid=url[:index]
     #print(type(uid))
-    url = 'https://club.jd.com/comment/productPageComments.action?callback=fetchJSON_comment98&productId={uid}&score=0&sortType=5&page=1&pageSize=10&isShadowSku=0&fold=1'.format(uid=uid)
+    url = 'https://club.jd.com/comment/productPageComments.action?callback=fetchJSON_comment98&productId={uid}&score=0&sortType=5&page={page}&pageSize=10&isShadowSku=0&fold=1'.format(uid=uid,page=page)
     #print(url)
 
     return url
@@ -63,7 +67,7 @@ def start(page,goodsurl):
     # 获取URL
     #score 评价等级 page=0 第一页 producitid 商品类别
 
-    url=pre(goodsurl)
+    url = pre(goodsurl,page)
 
     #json_url
     #url = 'https://club.jd.com/comment/productPageComments.action?callback=fetchJSON_comment98&productId=5561746&score=0&sortType=5&page=1&pageSize=10&isShadowSku=0&fold=1'
@@ -89,17 +93,14 @@ def start(page,goodsurl):
         print("网页{}获取失败".format(url),"原因",e)
     #try except只用在这写，外面start循环调用，就会自动返回异常，结束这一次循环，start外不用再做处理
 
+
     # 解析页面
 def parse(data):
     try:
-        if data==None:
-            return None
         items = data['comments']
-        if(items==None):
-            return None
         for i in items:
             yield (
-                i['nickname'],#用户名
+                i['nickname'],#用户名自
                 i['id'], #用户id
                 i['content'],#内容
                 i['creationTime']#时间
@@ -185,9 +186,10 @@ def main():
             time.sleep(1.5)
             #记得time反爬 其实我在爬取的时候没有使用代理ip也没给我封 不过就当这是个习惯吧
             first = start(j,goodsurl)
-            test = parse(first)
-            if(test==None):
+            if (not first or first['comments'] == []):
                 break
+            test = parse(first)
+
             if judge:
                 excel(test,goodsname)
                 judge = False
